@@ -24,7 +24,7 @@ class PhonePe:
                redirect_url (str): The redirect URL.
                webhook_url (str): The webhook URL.
                phone_pe_salt_index (int, optional): The PhonePe salt index. Defaults to 1.
-               redirect_mode (str, optional): The redirect mode. Defaults to "GET". Valid Values "GET/POST"
+               redirect_mode (str, optional): The redirect mode. Defaults to "GET". Valid Values "REDIRECT/POST"
         """
 
         self.merchant_id = merchant_id
