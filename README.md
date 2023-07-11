@@ -1,6 +1,3 @@
-Sure, here is the README.md file for documentation for the Python package:
-
-
 # PhonePe Payment Gateway Python Package
 
 This Python package provides a simple interface to the PhonePe Payment Gateway. It can be used to create PhonePe payment links, check the status of PhonePe transactions, and refund PhonePe transactions.
@@ -187,9 +184,7 @@ ref_resp = phonepe.refund_txn(refund)
 
 ```
 
-
-
-For more information, please see the [documentation](https://developer.phonepe.com/v1/reference/pay-api-1).
+For more information, please see the official [documentation](https://developer.phonepe.com/v1/reference/pay-api-1).
 
 
 I hope this is helpful! Let me know if you have any other questions.
