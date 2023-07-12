@@ -31,16 +31,15 @@ Args:
    redirect_mode (str, optional): The redirect mode. Defaults to "GET". Valid Values "GET/POST"
 ```
 
-* Create CheckSum And base64 encoded payment data
+* Create Transaction With Order Data
 ```python
-check_sum, encoded_order_payload = phonepe.create_order("ORDER_ID", 100, "USER_ID")
+order_data= phonepe.create_txn("ORDER_ID", 100, "USER_ID")
 
-#Create Transaction Link
-phonepe_txn = phonepe.create_phone_pe_txn(check_sum, encoded_order_payload)
+#Extract Payment Link
+link = order_data["data"]["instrumentResponse"]["redirectInfo"]["url"]
 
-print(phonepe_txn)
+print(link)
 ```
-* Note: Please Store The Checksum If You Are Updating The Transaction Status Via Webhook Callback
 * The payload that is going to be sent to the merchant on the specified callback URL will have a base64 encoded JSON.
 * Upon base64 decoding the response, you should get a JSON with a format similar to the response returned by transaction status API.
 Following are the response headers sent with a callback.
@@ -73,7 +72,6 @@ Args:
   }
 }
 ```
-You can use the `phonepe_txn['data']['instrumentResponse']['redirectInfo']['url']` to access the hosted checkout link
 ### Check Transaction Status
 
 The following code shows how to check the status of a PhonePe transaction:
@@ -110,6 +108,10 @@ print(status)
 Once the customer is redirected back to the merchant website/app, merchants should check with their server if they have received the Server-to-Server Callback response. If not, it is mandatory to make a Transaction Status API check with PhonePe backend systems to know the actual status of the payment and, then accordingly process the result.
 
 The payment status can be Success, Failed or Pending. When Pending, merchants should retry until the status changes to Success or Failed.
+```python
+if phonepe.verify_webhook_checksum(check_sum_in_header:str, b64_encoded_order_data:dict):
+    update_payment_status_in_db()
+```
 
 ```html
 Check Status API - Reconciliation [MANDATORY]
@@ -170,9 +172,8 @@ phonepe = PhonePe(
 )
 
 # Create PhonePe Order
-checksum, txn_data = phonepe.create_order("OTGTRT156", 1000, "bijay")
-resp = phonepe.create_phone_pe_txn(checksum, txn_data)
-payment_link = resp["data"]["instrumentResponse"]["redirectInfo"]["url"]
+order_data = phonepe.create_txn("OTGTRT156", 1000, "bijay")
+payment_link = order_data["data"]["instrumentResponse"]["redirectInfo"]["url"]
 
 # Check Transaction Status
 txn_status = phonepe.check_txn_status(resp['data']['merchantTransactionId'])
@@ -181,7 +182,6 @@ txn_status = phonepe.check_txn_status(resp['data']['merchantTransactionId'])
 refund = RefundTxn(txn_user_id="bijay", merchant_order_id="OTGTRT156", phonepe_txn_id="T2307112141199670477007",
                    amount=1000)
 ref_resp = phonepe.refund_txn(refund)
-
 ```
 
 For more information, please see the official [documentation](https://developer.phonepe.com/v1/reference/pay-api-1).

@@ -106,6 +106,23 @@ class PhonePe:
         except Exception:
             return None
 
+    def create_txn(self, order_id, amount, user):
+        """
+            Creates a PhonePe transaction.
+
+            This method generates a PhonePe transaction by creating an order, calculating the checksum, and invoking the PhonePe transaction creation API.
+
+            Args:
+                order_id (str): The unique ID for the order.
+                amount (float): The transaction amount.
+                user (str): The user associated with the transaction.
+
+            Returns:
+                Transaction Response: The created PhonePe transaction.
+    """
+        check_sum, order_data = self.create_order(order_id, amount, user)
+        return self.create_phone_pe_txn(check_sum, order_data)
+
     def check_txn_status(self, merchant_txn_id):
         """
             Checks the status of a PhonePe transaction.
@@ -125,7 +142,6 @@ class PhonePe:
             "X-VERIFY": sha_header,
             "X-MERCHANT-ID": self.merchant_id
         }
-
 
         print(headers)
         try:
@@ -169,6 +185,23 @@ class PhonePe:
             return response.json()
         except Exception:
             return None
+
+    def verify_webhook_checksum(self, check_sum: str, order_data: dict) -> bool:
+        """
+            Verifies the integrity of a webhook checksum with base64_encoded payment data.
+
+            This method is used to validate the checksum received in the response of a Server to Server callback with the checksum calculated at your end.
+
+            Args:
+                check_sum (str): The checksum received in the webhook response X-VERIFY header.
+                order_data (str): The response received in webhook payload.
+
+            Returns:
+                bool: True if the calculated checksum matches the received checksum, False otherwise.
+        """
+
+        return self.sha256_encode(order_data['response'] + self.phone_pe_salt) + '###' + str(
+            self.phone_pe_salt_index) == check_sum
 
     def verify_vpa(self, vpa_address):
         """
