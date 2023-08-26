@@ -4,6 +4,22 @@ import json
 import requests
 from pydantic import BaseModel, Field
 
+import functools
+import warnings
+
+
+def deprecated(message):
+    def deprecated_decorator(func):
+        @functools.wraps(func)
+        def new_func(*args, **kwargs):
+            warnings.warn(f"Call to deprecated function {func.__name__}. {message}", category=DeprecationWarning,
+                          stacklevel=2)
+            return func(*args, **kwargs)
+
+        return new_func
+
+    return deprecated_decorator
+
 
 class RefundTxn(BaseModel):
     txn_user_id: str = Field(..., description="The User ID of the merchant user.")
@@ -51,7 +67,7 @@ class PhonePe:
         sha256_hash.update(encoded_string)
         return sha256_hash.hexdigest()
 
-    def create_order(self, order_id, amount, user):
+    def _create_order(self, order_id, amount, user):
         """
             Create the checksum & order_payload for the PhonePe transaction.
 
@@ -83,7 +99,7 @@ class PhonePe:
 
         return [check_sum, base64_encoded]
 
-    def create_phone_pe_txn(self, check_sum: str, encoded_order_payload: str):
+    def _create_phone_pe_txn(self, check_sum: str, encoded_order_payload: str):
         """
             Create the PhonePe transaction link.
 
@@ -110,7 +126,8 @@ class PhonePe:
         """
             Creates a PhonePe transaction.
 
-            This method generates a PhonePe transaction by creating an order, calculating the checksum, and invoking the PhonePe transaction creation API.
+            This method generates a PhonePe transaction by creating an order, calculating the checksum, and invoking
+            the PhonePe transaction creation API.
 
             Args:
                 order_id (str): The unique ID for the order.
@@ -120,8 +137,8 @@ class PhonePe:
             Returns:
                 Transaction Response: The created PhonePe transaction.
     """
-        check_sum, order_data = self.create_order(order_id, amount, user)
-        return self.create_phone_pe_txn(check_sum, order_data)
+        check_sum, order_data = self._create_order(order_id, amount, user)
+        return self._create_phone_pe_txn(check_sum, order_data)
 
     def check_txn_status(self, merchant_txn_id):
         """
@@ -190,7 +207,8 @@ class PhonePe:
         """
             Verifies the integrity of a webhook checksum with base64_encoded payment data.
 
-            This method is used to validate the checksum received in the response of a Server to Server callback with the checksum calculated at your end.
+            This method is used to validate the checksum received in the response of a Server to Server callback with
+            the checksum calculated at your end.
 
             Args:
                 check_sum (str): The checksum received in the webhook response X-VERIFY header.
@@ -227,6 +245,63 @@ class PhonePe:
         payload = {"request": base64_encoded}
         try:
             response = requests.post(f"{self.phone_pe_host}/pg/v1/vpa/validate", json=payload, headers=headers)
+            return response.json()
+        except Exception:
+            return None
+
+    @deprecated("This function is deprecated and will be removed in future versions.")
+    def create_order(self, order_id, amount, user):
+        """
+            Create the checksum & order_payload for the PhonePe transaction.
+
+            Args:
+                order_id (str): The ID of the order.
+                amount (float): The transaction amount.
+                user (str): The user ID.
+
+            Returns:
+                list: A list containing the checksum and the base64-encoded payload.
+        """
+
+        payload = {
+            "merchantId": self.merchant_id,
+            "merchantTransactionId": order_id,
+            "merchantUserId": user,
+            "amount": int(amount),
+            "redirectUrl": self.redirect_url,
+            "redirectMode": self.redirect_mode,
+            "callbackUrl": self.webhook_url,
+            "paymentInstrument": {
+                "type": "PAY_PAGE"
+            }
+        }
+        json_payload = json.dumps(payload)
+        base64_encoded = base64.b64encode(json_payload.encode('utf-8')).decode('utf-8')
+
+        check_sum = f'{self.sha256_encode(f"{base64_encoded}/pg/v1/pay{self.phone_pe_salt}")}###{self.phone_pe_salt_index}'
+
+        return [check_sum, base64_encoded]
+
+    @deprecated("This function is deprecated and will be removed in future versions.")
+    def create_phone_pe_txn(self, check_sum: str, encoded_order_payload: str):
+        """
+            Create the PhonePe transaction link.
+
+            Args:
+                check_sum (str): The checksum.
+                encoded_order_payload (str): The base64-encoded order payload.
+
+            Returns:
+                dict: The response JSON if successful, None otherwise.
+        """
+        payload = {"request": encoded_order_payload}
+        headers = {
+            "accept": "application/json",
+            "Content-Type": "application/json",
+            "X-VERIFY": check_sum
+        }
+        try:
+            response = requests.post(f"{self.phone_pe_host}/pg/v1/pay", json=payload, headers=headers)
             return response.json()
         except Exception:
             return None
